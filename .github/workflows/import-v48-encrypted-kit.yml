@@ -1,0 +1,30 @@
+name: Import encrypted v48 kit
+on:
+  push:
+    paths:
+      - '.github/workflows/import-v48-encrypted-kit.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download encrypted transport
+        shell: bash
+        run: |
+          set -euxo pipefail
+          curl -fL --retry 4 -o v48-kit.enc https://temp.sh/nZsJC/v48-kit.enc
+          echo '2ff182fa34a6b2df233b54fa50eae942c8b08043aff882f994667e845df2fb07  v48-kit.enc' | sha256sum -c -
+          ls -lh v48-kit.enc
+      - name: Commit encrypted transport
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add v48-kit.enc
+          git commit -m 'temp: import encrypted v48 kit [skip ci]'
+          git push
