@@ -1,0 +1,1 @@
+Temporary transport workspace for ScheduleAssistant build outputs.
