@@ -1,36 +1,20 @@
-name: Import encrypted v48 kit
+name: Test binary artifact bridge
 on:
   push:
     paths:
       - '.github/workflows/import-v48-encrypted-kit.yml'
-  workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
-  import:
+  test:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Download encrypted transport
-        shell: bash
-        run: |
-          set -euxo pipefail
-          curl -fL --retry 4 -o v48-kit.enc https://temp.sh/nZsJC/v48-kit.enc
-          echo '2ff182fa34a6b2df233b54fa50eae942c8b08043aff882f994667e845df2fb07  v48-kit.enc' | sha256sum -c -
-          ls -lh v48-kit.enc
-      - name: Upload encrypted kit artifact
+      - name: Generate probe
+        run: printf 'artifact-bridge-ok\n' > probe.bin
+      - name: Upload probe artifact
         uses: actions/upload-artifact@v4
         with:
-          name: v48-kit-encrypted
-          path: v48-kit.enc
+          name: artifact-bridge-probe
+          path: probe.bin
           compression-level: 0
-      - name: Commit encrypted transport
-        shell: bash
-        run: |
-          set -euxo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add v48-kit.enc
-          git commit -m 'temp: import encrypted v48 kit [skip ci]' || true
-          git push
