@@ -19,6 +19,12 @@ jobs:
           curl -fL --retry 4 -o v48-kit.enc https://temp.sh/nZsJC/v48-kit.enc
           echo '2ff182fa34a6b2df233b54fa50eae942c8b08043aff882f994667e845df2fb07  v48-kit.enc' | sha256sum -c -
           ls -lh v48-kit.enc
+      - name: Upload encrypted kit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: v48-kit-encrypted
+          path: v48-kit.enc
+          compression-level: 0
       - name: Commit encrypted transport
         shell: bash
         run: |
@@ -26,5 +32,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add v48-kit.enc
-          git commit -m 'temp: import encrypted v48 kit [skip ci]'
+          git commit -m 'temp: import encrypted v48 kit [skip ci]' || true
           git push
