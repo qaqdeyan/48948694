@@ -1,4 +1,4 @@
-name: Import encrypted v48 delivery kit
+name: Export zipalign runtime
 on:
   push:
     paths:
@@ -6,21 +6,27 @@ on:
 permissions:
   contents: read
 jobs:
-  import:
+  export:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 4
+    env:
+      ZIPALIGN: /usr/local/lib/android/sdk/build-tools/36.0.0/zipalign
     steps:
       - uses: actions/checkout@v4
-      - name: Download encrypted v48 kit
+      - name: Collect libc++ for zipalign
         shell: bash
         run: |
           set -euxo pipefail
-          curl -fL --retry 5 -o /tmp/v48-kit.cms https://paste.c-net.org/b2930a9c-cd0e-e237-7e29-35e8d5bbcb2a
-          echo '265cf542816b1c64ca215e0b7d8dd2b000c6978485b16627943edb44b26f8e48  /tmp/v48-kit.cms' | sha256sum -c -
-          ls -lh /tmp/v48-kit.cms
-      - name: Upload encrypted kit artifact
+          mkdir -p /tmp/runtime
+          ldd "$ZIPALIGN" | tee /tmp/ldd.txt
+          LIBCPP=$(ldd "$ZIPALIGN" | awk '/libc\+\+\.so/{print $3; exit}')
+          test -n "$LIBCPP"
+          cp -L "$LIBCPP" /tmp/runtime/libc++.so
+          sha256sum /tmp/runtime/libc++.so
+          ls -lh /tmp/runtime/libc++.so
+      - name: Upload runtime artifact
         uses: actions/upload-artifact@v4
         with:
-          name: v48-encrypted-kit-new
-          path: /tmp/v48-kit.cms
+          name: zipalign-libcpp
+          path: /tmp/runtime/libc++.so
           compression-level: 0
