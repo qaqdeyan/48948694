@@ -1,4 +1,4 @@
-name: Build generic Android merge signing tools
+name: Import encrypted v48 delivery kit
 on:
   push:
     paths:
@@ -6,83 +6,21 @@ on:
 permissions:
   contents: read
 jobs:
-  build:
+  import:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '11'
-      - name: Build generic tools
+      - name: Download encrypted v48 kit
         shell: bash
         run: |
           set -euxo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq smali proguard
-          test -f "$ANDROID_HOME/build-tools/36.0.0/lib/apksigner.jar"
-          test -x "$ANDROID_HOME/build-tools/36.0.0/zipalign"
-          rm -rf /tmp/helper-classes /tmp/fat /tmp/kit
-          mkdir -p /tmp/helper-classes /tmp/fat /tmp/kit
-          cat >/tmp/DexMerge.java <<'JAVA'
-          import java.io.File;
-          import java.util.HashSet;
-          import java.util.Set;
-          import org.jf.dexlib2.DexFileFactory;
-          import org.jf.dexlib2.Opcodes;
-          import org.jf.dexlib2.iface.ClassDef;
-          import org.jf.dexlib2.iface.DexFile;
-          import org.jf.dexlib2.writer.io.FileDataStore;
-          import org.jf.dexlib2.writer.pool.DexPool;
-          public final class DexMerge {
-            public static void main(String[] a) throws Exception {
-              if (a.length != 3) throw new IllegalArgumentException("base.dex patch.dex out.dex");
-              Opcodes op = Opcodes.getDefault();
-              DexFile base = DexFileFactory.loadDexFile(new File(a[0]), op);
-              DexFile patch = DexFileFactory.loadDexFile(new File(a[1]), op);
-              Set<String> replace = new HashSet<>();
-              for (ClassDef c : patch.getClasses()) replace.add(c.getType());
-              DexPool pool = new DexPool(op);
-              int kept=0, added=0;
-              for (ClassDef c : base.getClasses()) if (!replace.contains(c.getType())) { pool.internClass(c); kept++; }
-              for (ClassDef c : patch.getClasses()) { pool.internClass(c); added++; }
-              pool.writeTo(new FileDataStore(new File(a[2])));
-              System.out.println("kept="+kept+" replaced="+replace.size()+" added="+added);
-            }
-          }
-          JAVA
-          DEX=/usr/share/java/dexlib2.jar
-          GUAVA=/usr/share/java/guava.jar
-          javac --release 8 -cp "$DEX:$GUAVA" -d /tmp/helper-classes /tmp/DexMerge.java
-          cp -r /tmp/helper-classes/* /tmp/fat/
-          (cd /tmp/fat && jar xf "$DEX")
-          (cd /tmp/fat && jar xf "$GUAVA")
-          rm -rf /tmp/fat/META-INF
-          (cd /tmp/fat && jar cf /tmp/dexmerge-fat.jar .)
-          cat >/tmp/proguard.pro <<'PG'
-          -injars /tmp/dexmerge-fat.jar
-          -outjars /tmp/kit/dexmerge.jar
-          -libraryjars <java.home>/jmods/java.base.jmod
-          -dontoptimize
-          -dontobfuscate
-          -dontwarn **
-          -keep public class DexMerge { public static void main(java.lang.String[]); }
-          -keepattributes Signature,InnerClasses,EnclosingMethod,*Annotation*
-          PG
-          proguard @/tmp/proguard.pro
-          java -cp /tmp/kit/dexmerge.jar DexMerge >/tmp/helper.txt 2>&1 || true
-          grep -q 'base.dex patch.dex out.dex' /tmp/helper.txt
-          cp "$ANDROID_HOME/build-tools/36.0.0/lib/apksigner.jar" /tmp/kit/apksigner.jar
-          cp "$ANDROID_HOME/build-tools/36.0.0/zipalign" /tmp/kit/zipalign
-          chmod +x /tmp/kit/zipalign
-          sha256sum /tmp/kit/* > /tmp/kit/SHA256SUMS.txt
-          ls -lh /tmp/kit/*
-      - name: Upload tools artifact
+          curl -fL --retry 5 -o /tmp/v48-kit.cms https://paste.c-net.org/b2930a9c-cd0e-e237-7e29-35e8d5bbcb2a
+          echo '265cf542816b1c64ca215e0b7d8dd2b000c6978485b16627943edb44b26f8e48  /tmp/v48-kit.cms' | sha256sum -c -
+          ls -lh /tmp/v48-kit.cms
+      - name: Upload encrypted kit artifact
         uses: actions/upload-artifact@v4
         with:
-          name: android-merge-sign-tools
-          path: /tmp/kit
+          name: v48-encrypted-kit-new
+          path: /tmp/v48-kit.cms
           compression-level: 0
